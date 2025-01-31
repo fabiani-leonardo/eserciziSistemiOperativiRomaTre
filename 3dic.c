@@ -1,98 +1,32 @@
-/*Una pila di 10 elementi interi è condivisa tra due thread: un produttore ed un consumatore
+/*Un file su disco ha il seguente formato:
+<numero_record><record 1><record 2>…
 
-1)     Il produttore deve essere implementato secondo la seguente logica. In un ciclo infinito:
-Deve attendere una quantità di tempo casuale inferiore al secondo
-Una volta scaduta l’attesa, se la pila è piena, deve attendere che qualche elemento venga rimosso dal consumatore
-Quando si libera dello spazio nello stack, deve inserire un numero casuale di elementi (senza andare in overflow)
+dove:
 
-2)     Il consumatore deve essere implementato secondo la seguente logica. In un ciclo infinito:
+-        <numero_record> è un intero rappresentante il numero di record attualmente presenti all’interno del file
+
+-        <record1><record2>, …, sono ognuno un numero intero.
+
+Il file è acceduto da due thread: un produttore ed un consumatore, ed è gestito come se fosse una pila: i nuovi elementi vengono accodati al termine del file, e la lettura (con contestuale rimozione) degli elementi avviene dall’ultimo elemento del file. Il file non deve contenere più di 10 record oltre all’indicatore iniziale del numero di record presenti.
+
+I due thread, produttore e consumatore, hanno il seguente comportamento:
+
+1)     Il produttore, in un ciclo infinito:
+
 Deve attendere una quantità di tempo casuale inferiore al secondo
-Una volta scaduta l’attesa, se lo stack è vuoto, deve attendere che qualche elemento venga inserito dal produttore
-Quando lo stack non è vuoto, deve leggere un numero casuale di elementi (inferiore o uguale al numero di elementi presenti nello stack) 
+Una volta scaduta l’attesa, se la pila contenuta nel file è piena, deve attendere che qualche elemento venga rimosso dal consumatore
+Quando si libera dello spazio nella pila, deve inserire un numero casuale di elementi (senza andare in overflow rispetto alle dimensioni della pila) ed aggiornare il contatore all’inizio del file
+2)     Il consumatore, in un ciclo infinito:
+
+Deve attendere una quantità di tempo casuale inferiore al secondo
+Una volta scaduta l’attesa, se la pila è vuota, deve attendere che qualche elemento venga inserito dal produttore
+Quando la pila non è vuota, deve leggere un numero casuale di elementi (inferiore o uguale al numero di elementi presenti nello stack), sostituirne il valore con il numero 0 ed aggiornare il valore all’inizio del file.
+ 
+
+Suggerimento
+
+Quando si esegue una read() o una write() su un file, viene spostato un cursore in avanti del numero di byte letti o scritti sul file. Ad esempio, se un file contenesse la stringa “ciaopino” e venisse effettuata una read() di 4 byte, questa leggerebbe “ciao”. Un’eventuale seconda read() di 4 byte leggerebbe invece “pino”. Allo stesso modo, se si eseguisse una prima lettura di 4 byte e successivamente una scrittura di 4 byte della stringa “anno”, il file conterrebbe la stringa “ciaoanno” al termine dell’esecuzione delle read() e delle write().
+E’ possibile spostare il cursore anche senza necessariamente effettuare una read() o una write(), utilizzando la funzione lseek() – usa il manuale per scoprire come usare lseek().
 */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
-#include <time.h>
-
-#define STACK_SIZE 10
-
-int stack[STACK_SIZE];
-int count = 0;
-
-void push(int value) {
-    if (count < STACK_SIZE) {
-        stack[count++] = value;
-    }
-}
-
-int pop() {
-    if (count > 0) {
-        return stack[--count];
-    }
-    return -1; // Errore, stack vuoto
-}
-
-int stackIsFull() {
-    return count == STACK_SIZE;
-}
-
-int stackIsEmpty() {
-    return count == 0;
-}
-
-int stackSize() {
-    return count;
-}
-
-void *producer(void *arg) {
-    while (1) {
-        usleep(rand() % 1000000); // Attende un tempo casuale < 1 secondo
-        
-        while (stackIsFull()) {
-            continue;
-        }
-        
-        int items_to_add = rand() % (STACK_SIZE - count) + 1;
-        printf("Produttore: aggiunge %d elementi\n", items_to_add);
-        for (int i = 0; i < items_to_add; i++) {
-            int value = rand() % 100;
-            push(value);
-            printf("Produttore ha aggiunto: %d\n", value);
-        }
-    }
-    return NULL;
-}
-
-void *consumer(void *arg) {
-    while (1) {
-        usleep(rand() % 1000000); // Attende un tempo casuale < 1 secondo
-        
-        while (stackIsEmpty()) {
-            continue;
-        }
-        
-        int items_to_remove = rand() % stackSize() + 1;
-        printf("Consumatore: rimuove %d elementi\n", items_to_remove);
-        for (int i = 0; i < items_to_remove; i++) {
-            int value = pop();
-            printf("Consumatore ha rimosso: %d\n", value);
-        }
-    }
-    return NULL;
-}
-
-int main() {
-    srand(time(NULL));
-    pthread_t prod, cons;
-    
-    pthread_create(&prod, NULL, producer, NULL);
-    pthread_create(&cons, NULL, consumer, NULL);
-    
-    pthread_join(prod, NULL);
-    pthread_join(cons, NULL);
-    
-    return 0;
-}
