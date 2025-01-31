@@ -13,36 +13,86 @@ Quando lo stack non è vuoto, deve leggere un numero casuale di elementi (inferi
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <pthread.h>
 #include <unistd.h>
-#include <sys/wait.h>
+#include <time.h>
 
-int main(int argc, char const *argv[])
-{
-	srand(time(NULL));
+#define STACK_SIZE 10
 
-	pthread_t prod,cons;
+int stack[STACK_SIZE];
+int count = 0;
 
-	pthread_create(&prod,NULL, producer,NULL);
-	pthread_create(&cons,NULL, consumer,NULL);
-	
-	pthread_join(prod, NULL);		//il secondo argomento rappresenta un puntatore dove memorizzare il valore di uscita del thread
+void push(int value) {
+    if (count < STACK_SIZE) {
+        stack[count++] = value;
+    }
+}
+
+int pop() {
+    if (count > 0) {
+        return stack[--count];
+    }
+    return -1; // Errore, stack vuoto
+}
+
+int stackIsFull() {
+    return count == STACK_SIZE;
+}
+
+int stackIsEmpty() {
+    return count == 0;
+}
+
+int stackSize() {
+    return count;
+}
+
+void *producer(void *arg) {
+    while (1) {
+        usleep(rand() % 1000000); // Attende un tempo casuale < 1 secondo
+        
+        while (stackIsFull()) {
+            continue;
+        }
+        
+        int items_to_add = rand() % (STACK_SIZE - count) + 1;
+        printf("Produttore: aggiunge %d elementi\n", items_to_add);
+        for (int i = 0; i < items_to_add; i++) {
+            int value = rand() % 100;
+            push(value);
+            printf("Produttore ha aggiunto: %d\n", value);
+        }
+    }
+    return NULL;
+}
+
+void *consumer(void *arg) {
+    while (1) {
+        usleep(rand() % 1000000); // Attende un tempo casuale < 1 secondo
+        
+        while (stackIsEmpty()) {
+            continue;
+        }
+        
+        int items_to_remove = rand() % stackSize() + 1;
+        printf("Consumatore: rimuove %d elementi\n", items_to_remove);
+        for (int i = 0; i < items_to_remove; i++) {
+            int value = pop();
+            printf("Consumatore ha rimosso: %d\n", value);
+        }
+    }
+    return NULL;
+}
+
+int main() {
+    srand(time(NULL));
+    pthread_t prod, cons;
+    
+    pthread_create(&prod, NULL, producer, NULL);
+    pthread_create(&cons, NULL, consumer, NULL);
+    
+    pthread_join(prod, NULL);
     pthread_join(cons, NULL);
-
-	return 0;
+    
+    return 0;
 }
-
-void *producer(){	//"void *" davanti a producer indica che viene ritprnato un puntatore ad un tipo non specificato
-	while(1){
-		usleep(rand()%1000000); //genera un valore random tra 0 e 1000000 di microsecondi
-	}
-	return;
-}
-
-void *consumer(){
-	return;
-}
-
-
-
-
