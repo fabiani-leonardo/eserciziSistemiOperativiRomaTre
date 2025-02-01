@@ -29,4 +29,98 @@ Quando si esegue una read() o una write() su un file, viene spostato un cursore 
 E’ possibile spostare il cursore anche senza necessariamente effettuare una read() o una write(), utilizzando la funzione lseek() – usa il manuale per scoprire come usare lseek().
 */
 
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#define SIZE 10
+const char *file="stack.txt";
+int fd;
+int numvalori=0;
+int num;
+int zero=0;
+pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
+
+void *produttore(void *arg){
+	while(1){
+		usleep(rand()%1000000);
+		pthread_mutex_lock(&lock);
+		lseek(fd,0,SEEK_SET);
+		read(fd,&numvalori,sizeof(int));
+
+		num=rand()%10;
+		lseek(fd,(1+numvalori)*sizeof(int),SEEK_SET);
+		for (int i = 0; i < num; ++i)
+		{
+			if (numvalori>=SIZE)
+			{
+				break;
+			}else{
+				int val=rand()%100;
+				printf("scrivo %d\n",val);
+				write(fd,&val,sizeof(int));
+				numvalori++;
+			}
+		}
+		lseek(fd,0,SEEK_SET);
+		write(fd,&numvalori,sizeof(int));
+		pthread_mutex_unlock(&lock);
+	}
+	return 0;
+	
+}
+
+void *consumatore(void *arg){
+	while(1){
+		usleep(rand()%1000000);
+		pthread_mutex_lock(&lock);
+		lseek(fd,0,SEEK_SET);
+		read(fd,&numvalori,sizeof(int));
+
+		num=rand()%10;
+		for (int i = 0; i < num; ++i)
+		{
+			if (numvalori<=0)
+			{
+				break;
+			}else{
+				int val;
+				lseek(fd,numvalori*sizeof(int),SEEK_SET);
+				read(fd,&val,sizeof(int));
+				lseek(fd,numvalori*sizeof(int),SEEK_SET);
+				write(fd,&zero,sizeof(int));
+				printf("leggo %d\n",val );
+				numvalori--;
+			}
+		}
+		
+		
+		lseek(fd,0,SEEK_SET);
+		write(fd,&numvalori,sizeof(int));
+		pthread_mutex_unlock(&lock);
+	}
+	
+}
+
+
+int main(int argc, char const *argv[])
+{
+	srand(time(NULL));
+	fd=open(file,O_TRUNC|O_CREAT|O_RDWR,0700);
+	write(fd,&zero,sizeof(int));
+
+	pthread_t prod,cons;
+
+	pthread_create(&prod,NULL,produttore,NULL);
+	pthread_create(&cons,NULL,consumatore,NULL);
+
+	pthread_join(prod,NULL);
+	pthread_join(cons,NULL);
+
+	return 0;
+}
+

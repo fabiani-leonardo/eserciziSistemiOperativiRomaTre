@@ -11,12 +11,12 @@ int main(int argc, char const *argv[])
 	if (pid<0){		//errore
 		return -1;
 	}
-	if (pid==0)		//child è 0
+	if (pid==0)		//child riceve nella variabile pid 0
 	{
 		printf("child value=%d\n", x);
 		x=200;
 		printf("new child value=%d\n",x);
-	}else{			//il parent ha un valore di pid sicuramente diverso da 0
+	}else{			//il parent riceve nella variabile pid, il pid del child
 		printf("parent value=%d\n", x);
 		x=500;
 		printf("new parent value=%d\n",x);

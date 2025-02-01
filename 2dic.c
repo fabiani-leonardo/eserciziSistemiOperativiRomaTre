@@ -91,7 +91,7 @@ int main() {
     pthread_create(&prod, NULL, producer, NULL);
     pthread_create(&cons, NULL, consumer, NULL);
     
-    pthread_join(prod, NULL);
+    pthread_join(prod, NULL);   //il secondo argomento è un puntatore alla variabile di ritorno
     pthread_join(cons, NULL);
     
     return 0;
